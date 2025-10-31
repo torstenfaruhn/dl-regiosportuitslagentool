@@ -1,17 +1,13 @@
-
-# Auto-generated from your notebook. 
-# Exposes excel_to_txt(file_bytes: bytes) -> str
-
+# converter.py — server-veilige versie (geen Colab, geen top-level uitvoer)
 import io
+import re
+import unicodedata
 import pandas as pd
 
-# Colab: installeer libs indien nodig
-# !pip -q install pandas openpyxl
 
-import re, unicodedata
-import pandas as pd
 def _strip_accents(s: str) -> str:
-    return ''.join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
+
 
 def _nl_sort_key(sport: str):
     """NL-collatie: 'ij' telt als 'y'. Sorteer key: ('', key) met lege sport achteraan."""
@@ -23,6 +19,7 @@ def _nl_sort_key(sport: str):
         s_norm = "y" + s_norm[2:]
     return (False, s_norm)
 
+
 def convert_sheet1_blocks(df):
     """Parse 'Sporten met uitslagregel' naar blokken met keys: sport, render_lines(list).
        Neemt dynamisch alle 'UITSLAGREGEL N' mee (N = 1..∞)."""
@@ -30,7 +27,7 @@ def convert_sheet1_blocks(df):
     value_col = df.columns[1]
     blocks = []
     current = {"SPORT": None, "EVENEMENT": None, "UITSLAGREGELS": []}
-    uireg = re.compile(r'^UITSLAGREGEL\s*(\d+)$', re.IGNORECASE)
+    uireg = re.compile(r"^UITSLAGREGEL\s*(\d+)$", re.IGNORECASE)
 
     def flush():
         nonlocal current
@@ -43,7 +40,7 @@ def convert_sheet1_blocks(df):
             for txt in current["UITSLAGREGELS"]:
                 if txt:
                     lines.append(f"<howto_facts>{txt}</howto_facts><EP>")
-            blocks.append({"sport": (current.get("SPORT") or '').strip(), "render_lines": lines})
+            blocks.append({"sport": (current.get("SPORT") or "").strip(), "render_lines": lines})
         current = {"SPORT": None, "EVENEMENT": None, "UITSLAGREGELS": []}
 
     for _, row in df.iterrows():
@@ -51,25 +48,31 @@ def convert_sheet1_blocks(df):
         value = (str(row.get(value_col)).strip() if pd.notna(row.get(value_col)) else "")
 
         if not label and not value:
-            flush(); continue
+            flush()
+            continue
         if label.upper().startswith("INVOERVELD"):
-            flush(); continue
+            flush()
+            continue
 
         lab_up = label.upper()
         if lab_up == "SPORT":
-            if value: current["SPORT"] = value
+            if value:
+                current["SPORT"] = value
         elif lab_up == "EVENEMENT":
-            if value: current["EVENEMENT"] = value
+            if value:
+                current["EVENEMENT"] = value
         elif uireg.match(lab_up):
-            if value: current["UITSLAGREGELS"].append(value)
+            if value:
+                current["UITSLAGREGELS"].append(value)
         # else: ignore others
     flush()
     return blocks
 
+
 def iter_sheet2_blocks(df):
     """Yield blokken uit 'Sporten met stand' met: sport, evenement, rows, stand."""
     cols = list(df.columns)
-    a,b,c,d,e = cols[0], cols[1], cols[2], cols[3], cols[4]
+    a, b, c, d, e = cols[0], cols[1], cols[2], cols[3], cols[4]
     i, n = 0, len(df)
     while i < n:
         label = str(df.at[i, a]).strip() if pd.notna(df.at[i, a]) else ""
@@ -81,7 +84,7 @@ def iter_sheet2_blocks(df):
                 evenement = str(df.at[i, b]).strip() if pd.notna(df.at[i, b]) else ""
                 i += 1
             # Header overslaan
-            if i < n and pd.isna(df.at[i, a]) and all(pd.notna(df.at[i, col]) for col in [b,c,d,e]):
+            if i < n and pd.isna(df.at[i, a]) and all(pd.notna(df.at[i, col]) for col in [b, c, d, e]):
                 i += 1
             rows = []
             stand_text = ""
@@ -94,7 +97,7 @@ def iter_sheet2_blocks(df):
                 if lab.startswith("INVOERVELD") or lab == "SPORT":
                     break
                 home = str(df.at[i, b]).strip() if pd.notna(df.at[i, b]) else ""
-                hs   = str(df.at[i, c]).strip() if pd.notna(df.at[i, c]) else ""
+                hs = str(df.at[i, c]).strip() if pd.notna(df.at[i, c]) else ""
                 away = str(df.at[i, d]).strip() if pd.notna(df.at[i, d]) else ""
                 ascr = str(df.at[i, e]).strip() if pd.notna(df.at[i, e]) else ""
                 if any([home, hs, away, ascr]):
@@ -104,42 +107,67 @@ def iter_sheet2_blocks(df):
         else:
             i += 1
 
+
 def render_table_block(block):
     lines = []
     lines.append(f"<subhead_lead>{block['sport']}</subhead_lead><EP>")
     lines.append(f"<subhead>{block['evenement']}</subhead><EP>")
     lines.append('<TABLE cciformat="1,0" cols="4" dispwidth="30m" topgutter="0.5272m" bottomgutter="0.5272m" break="norule">')
-    lines.extend(['<TCOL width="40m">','</TCOL>','<TCOL width="4m">','</TCOL>','<TCOL width="2m" align="center">','</TCOL>',
-                  '<TCOL width="4m" align="right" raster="uniform" color="3,2" pagespot="0" pattern="0" tint="100" angle="0" frequency="0">','</TCOL>'])
-    lines.append('<TBODY>')
+    lines.extend(
+        [
+            "<TCOL width=\"40m\">",
+            "</TCOL>",
+            "<TCOL width=\"4m\">",
+            "</TCOL>",
+            "<TCOL width=\"2m\" align=\"center\">",
+            "</TCOL>",
+            '<TCOL width="4m" align="right" raster="uniform" color="3,2" pagespot="0" pattern="0" tint="100" angle="0" frequency="0">',
+            "</TCOL>",
+        ]
+    )
+    lines.append("<TBODY>")
     n = len(block["rows"])
     for idx, (home, hs, away, ascr) in enumerate(block["rows"]):
         attrs = []
-        if idx == 0:     attrs.append('topgutter="1.5816m"')
-        if idx == n - 1: attrs.append('bottomgutter="1.5816m"')
+        if idx == 0:
+            attrs.append('topgutter="1.5816m"')
+        if idx == n - 1:
+            attrs.append('bottomgutter="1.5816m"')
         attr_str = f" {' '.join(attrs)}" if attrs else ""
         lines.append(f"<TROW{attr_str}>")
-        lines += ["<TFIELD>", f"{home} - {away}", "</TFIELD>",
-                  "<TFIELD>", f"{hs}", "</TFIELD>",
-                  "<TFIELD>", "-", "</TFIELD>",
-                  "<TFIELD>", f"{ascr}", "</TFIELD>",
-                  "</TROW>"]
+        lines += [
+            "<TFIELD>",
+            f"{home} - {away}",
+            "</TFIELD>",
+            "<TFIELD>",
+            f"{hs}",
+            "</TFIELD>",
+            "<TFIELD>",
+            "-",
+            "</TFIELD>",
+            "<TFIELD>",
+            f"{ascr}",
+            "</TFIELD>",
+            "</TROW>",
+        ]
     lines.append("</TBODY>")
     lines.append("</TABLE>")
     if block.get("stand"):
         lines.append(f"<howto_facts>{block['stand']}</howto_facts><EP>")
     return lines
 
+
 def to_render_blocks(sheet1_df, sheet2_df):
     """Combineer blokken uit beide sheets en sorteer op sport (NL: IJ ⇒ Y)."""
     blocks_s1 = convert_sheet1_blocks(sheet1_df)
     blocks_s2 = []
     for b in iter_sheet2_blocks(sheet2_df):
-        if not (b['sport'] or b['evenement'] or b['rows']):
+        if not (b["sport"] or b["evenement"] or b["rows"]):
             continue
-        blocks_s2.append({"sport": b['sport'], "render_lines": render_table_block(b)})
+        blocks_s2.append({"sport": b["sport"], "render_lines": render_table_block(b)})
     all_blocks = blocks_s1 + blocks_s2
     return sorted(all_blocks, key=lambda bl: _nl_sort_key(bl.get("sport")))
+
 
 def suppress_redundant_sportheads(blocks):
     """Verwijder <subhead_lead>…</subhead_lead><EP> bij tweede+ blok met dezelfde SPORT (case-insensitive)."""
@@ -155,27 +183,21 @@ def suppress_redundant_sportheads(blocks):
                 lines = lines[1:]
         else:
             last_sport_norm = sport_norm
-        out.append({"sport": bl.get("sport",""), "render_lines": lines})
+        out.append({"sport": bl.get("sport", ""), "render_lines": lines})
     return out
-
-print("Upload het Excel-bestand (met 2 tabbladen)…")
-uploaded = files.upload()
-assert uploaded, "Geen bestand geüpload."
-fname = list(uploaded.keys())[0]
-
 
 
 def excel_to_txt(file_bytes: bytes) -> str:
     """
-    Convert the uploaded Excel (with two sheets) into the CUE-ready TXT.
-    This function mirrors your notebook's behavior, minus Colab upload/download.
+    Converteer de geüploade Excel (met 2 tabbladen) naar de CUE-tekst.
+    Verwacht bytes van een .xlsx bestand. Geeft een string terug.
     """
-    fname = io.BytesIO(file_bytes)
+    buf = io.BytesIO(file_bytes)
 
-    # --- original compose logic (lightly adapted) ---
-    xls = pd.ExcelFile(fname)
-    sheet1 = pd.read_excel(fname, sheet_name=xls.sheet_names[0], dtype=str)
-    sheet2 = pd.read_excel(fname, sheet_name=xls.sheet_names[1], dtype=str)
+    # Lees beide sheets (neem de eerste twee)
+    xls = pd.ExcelFile(buf, engine="openpyxl")
+    sheet1 = pd.read_excel(xls, sheet_name=0, dtype=str)
+    sheet2 = pd.read_excel(xls, sheet_name=1, dtype=str)
 
     # Build + sort + suppress duplicate sport heads
     blocks = to_render_blocks(sheet1, sheet2)
@@ -188,16 +210,7 @@ def excel_to_txt(file_bytes: bytes) -> str:
     lines.append("</body>")
     output_text = "\n".join(lines)
 
-    # --- NIEUWE NABEWERKING: EP→EP,1 bij overgang howto_facts → subhead ---
-
-    import re
-
-    # Zoek elk geval waarin </howto_facts><EP> direct gevolgd wordt door <subhead>
-    # (eventueel met witregels of spaties ertussen)
-    output_text = re.sub(
-        r'</howto_facts><EP>\s*<subhead>',
-        r'</howto_facts><EP,1>\n<subhead>',
-        output_text
-    )
+    # Nabehandeling: EP → EP,1 bij overgang howto_facts → subhead
+    output_text = re.sub(r"</howto_facts><EP>\s*<subhead>", r"</howto_facts><EP,1>\n<subhead>", output_text)
 
     return output_text
